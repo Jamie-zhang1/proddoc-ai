@@ -11,7 +11,6 @@ const pages = [
   { path: "/workspace", file: "workspace.png", label: "Workspace" },
   { path: "/templates", file: "templates.png", label: "Templates" },
   { path: "/history", file: "history.png", label: "History" },
-  { path: "/settings", file: "settings.png", label: "Settings" },
 ];
 
 const browserCandidates = [
@@ -38,48 +37,6 @@ const historyRecord = {
   status: "已保存",
 };
 
-const historyRecords = [
-  historyRecord,
-  {
-    ...historyRecord,
-    id: "portfolio-demo-record-2",
-    title: "内容审核操作手册",
-    productName: "内容运营后台 Demo",
-    productType: "内容管理系统",
-    parentModule: "内容管理",
-    moduleName: "内容审核",
-    documentType: "操作手册",
-  },
-  {
-    ...historyRecord,
-    id: "portfolio-demo-record-3",
-    title: "任务看板培训讲稿",
-    productName: "企业协作平台 Demo",
-    productType: "协作办公系统",
-    parentModule: "项目管理",
-    moduleName: "任务看板",
-    documentType: "培训讲稿",
-  },
-  {
-    ...historyRecord,
-    id: "portfolio-demo-record-4",
-    title: "报表导出售前介绍",
-    productName: "BI 数据看板 Demo",
-    productType: "BI 看板",
-    parentModule: "报表管理",
-    moduleName: "报表导出",
-    documentType: "售前介绍",
-  },
-  {
-    ...historyRecord,
-    id: "portfolio-demo-record-5",
-    title: "字段配置功能补充说明",
-    parentModule: "系统设置",
-    moduleName: "字段配置",
-    documentType: "功能补充说明",
-  },
-];
-
 const workspaceDraft = {
   productName: "SaaS 客户管理系统 Demo",
   productType: "CRM 系统",
@@ -94,8 +51,9 @@ const workspaceDraft = {
     "请围绕客户信息维护、业务推进、状态变化和记录追踪组织说明，保持产品说明书口径。",
   specialRequirements:
     "突出功能入口、关键字段、常见操作和权限边界，不编造客户案例或真实数据。",
-  prompt: "",
-  documentContent: "",
+  prompt:
+    "你是一名资深产品文档专家，请根据 SaaS 客户管理系统 Demo 的客户列表模块，生成产品说明书正文。内容应包含功能概述、功能入口、核心能力、操作流程、页面说明、字段说明、应用场景和注意事项。",
+  documentContent: historyRecord.content,
   screenshots: [],
 };
 
@@ -119,7 +77,7 @@ async function waitForServer(timeoutMs = 60000) {
   throw new Error(`Dev server was not ready within ${timeoutMs}ms: ${baseUrl}`);
 }
 
-async function prepareBrowserPage(browser, path) {
+async function prepareBrowserPage(browser) {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
     deviceScaleFactor: 1,
@@ -127,20 +85,8 @@ async function prepareBrowserPage(browser, path) {
 
   await page.addInitScript(
     ({ record, draft }) => {
-      localStorage.setItem(
-        "proddoc-ai-history",
-        JSON.stringify(location.pathname === "/history" ? [] : record)
-      );
+      localStorage.setItem("proddoc-ai-history", JSON.stringify([record]));
       localStorage.setItem("proddoc-ai-workspace-draft", JSON.stringify(draft));
-      localStorage.setItem(
-        "proddoc-ai-generation-preferences",
-        JSON.stringify({
-          generationMode: "api",
-          documentType: "产品说明书",
-          detailLevel: "标准版",
-          outputStyle: "专业正式",
-        })
-      );
       localStorage.setItem(
         "proddoc-ai-active-template",
         JSON.stringify({
@@ -154,7 +100,7 @@ async function prepareBrowserPage(browser, path) {
         })
       );
     },
-    { record: historyRecords, draft: workspaceDraft, path }
+    { record: historyRecord, draft: workspaceDraft }
   );
 
   return page;
@@ -210,12 +156,9 @@ async function capture() {
 
   try {
     for (const item of pages) {
-      const page = await prepareBrowserPage(browser, item.path);
+      const page = await prepareBrowserPage(browser);
       await page.goto(`${baseUrl}${item.path}`, { waitUntil: "networkidle" });
       await page.waitForLoadState("domcontentloaded");
-      await page.addStyleTag({
-        content: "[data-sonner-toaster]{display:none!important;}",
-      });
       await page.waitForTimeout(1000);
 
       const bodyBox = await page.locator("body").boundingBox();

@@ -1,18 +1,8 @@
-import type {
-  ActiveDocument,
-  ActiveTemplate,
-  CustomTemplate,
-  GenerationPreferences,
-  HistoryRecord,
-  WorkspaceDraft,
-} from "@/lib/types";
+import type { ActiveTemplate, HistoryRecord, WorkspaceDraft } from "@/lib/types";
 
 const historyKey = "proddoc-ai-history";
 const draftKey = "proddoc-ai-workspace-draft";
 const activeTemplateKey = "proddoc-ai-active-template";
-const generationPreferencesKey = "proddoc-ai-generation-preferences";
-const customTemplatesKey = "proddoc-ai-custom-templates";
-const activeDocumentKey = "proddoc-ai-active-document";
 
 function canUseStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -69,14 +59,7 @@ export function getWorkspaceDraft(): WorkspaceDraft | null {
 
   try {
     const raw = localStorage.getItem(draftKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as WorkspaceDraft;
-    return {
-      ...parsed,
-      generationMode: parsed.generationMode ?? "prompt",
-      referenceFiles: parsed.referenceFiles ?? [],
-      screenshots: parsed.screenshots ?? [],
-    };
+    return raw ? (JSON.parse(raw) as WorkspaceDraft) : null;
   } catch {
     return null;
   }
@@ -111,131 +94,5 @@ export function getActiveTemplate(): ActiveTemplate | null {
     return raw ? (JSON.parse(raw) as ActiveTemplate) : null;
   } catch {
     return null;
-  }
-}
-
-export function saveGenerationPreferences(preferences: GenerationPreferences) {
-  if (!canUseStorage()) return false;
-
-  try {
-    localStorage.setItem(generationPreferencesKey, JSON.stringify(preferences));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getGenerationPreferences(): GenerationPreferences | null {
-  if (!canUseStorage()) return null;
-
-  try {
-    const raw = localStorage.getItem(generationPreferencesKey);
-    return raw ? (JSON.parse(raw) as GenerationPreferences) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function getCustomTemplates(): CustomTemplate[] {
-  if (!canUseStorage()) return [];
-
-  try {
-    const raw = localStorage.getItem(customTemplatesKey);
-    return raw ? (JSON.parse(raw) as CustomTemplate[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveCustomTemplate(template: CustomTemplate) {
-  if (!canUseStorage()) return false;
-
-  try {
-    const templates = getCustomTemplates();
-    const nextTemplates = [
-      template,
-      ...templates.filter((item) => item.id !== template.id),
-    ];
-    localStorage.setItem(customTemplatesKey, JSON.stringify(nextTemplates));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function updateCustomTemplate(template: CustomTemplate) {
-  if (!canUseStorage()) return false;
-
-  try {
-    const templates = getCustomTemplates();
-    localStorage.setItem(
-      customTemplatesKey,
-      JSON.stringify(templates.map((item) => (item.id === template.id ? template : item)))
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deleteCustomTemplate(id: string) {
-  if (!canUseStorage()) return [];
-
-  try {
-    const nextTemplates = getCustomTemplates().filter((template) => template.id !== id);
-    localStorage.setItem(customTemplatesKey, JSON.stringify(nextTemplates));
-    return nextTemplates;
-  } catch {
-    return getCustomTemplates();
-  }
-}
-
-export function saveActiveDocument(document: ActiveDocument) {
-  if (!canUseStorage()) return false;
-
-  try {
-    localStorage.setItem(activeDocumentKey, JSON.stringify(document));
-    saveWorkspaceDraft({
-      ...document.draft,
-      documentContent: document.content,
-      initialDocumentContent: document.initialContent ?? document.draft.initialDocumentContent,
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getActiveDocument(): ActiveDocument | null {
-  if (!canUseStorage()) return null;
-
-  try {
-    const raw = localStorage.getItem(activeDocumentKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ActiveDocument;
-    return {
-      ...parsed,
-      draft: {
-        ...parsed.draft,
-        referenceFiles: parsed.draft.referenceFiles ?? [],
-        screenshots: parsed.draft.screenshots ?? [],
-      },
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function updateActiveDocument(document: ActiveDocument) {
-  return saveActiveDocument({ ...document, updatedAt: new Date().toISOString() });
-}
-
-export function clearActiveDocument() {
-  if (!canUseStorage()) return;
-
-  try {
-    localStorage.removeItem(activeDocumentKey);
-  } catch {
-    // Ignore unavailable storage.
   }
 }

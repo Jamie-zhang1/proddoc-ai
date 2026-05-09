@@ -231,11 +231,9 @@ export const defaultDraft: WorkspaceDraft = {
   keywords: "列表筛选、批量操作、详情查看、状态标识、导出数据",
   referenceWriting: "请使用清晰的小标题描述模块定位、关键能力、操作入口和注意事项。",
   specialRequirements: "避免编造具体客户案例和真实业务数据，保持通用软件产品语境。",
-  generationMode: "prompt",
   prompt: "",
   documentContent: "",
   screenshots: [],
-  referenceFiles: [],
 };
 
 export function getModuleCount() {

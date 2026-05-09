@@ -54,10 +54,10 @@ export function HistoryTable({ records, onDelete }: HistoryTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50 dark:bg-slate-900">
+          <TableRow className="bg-zinc-50">
             <TableHead>文档标题</TableHead>
             <TableHead>产品名称</TableHead>
             <TableHead>产品类型</TableHead>
@@ -71,14 +71,14 @@ export function HistoryTable({ records, onDelete }: HistoryTableProps) {
         <TableBody>
           {records.map((record) => (
             <TableRow key={record.id}>
-              <TableCell className="font-medium text-slate-900 dark:text-slate-100">{record.title}</TableCell>
+              <TableCell className="font-medium">{record.title}</TableCell>
               <TableCell>{record.productName}</TableCell>
               <TableCell>{record.productType}</TableCell>
               <TableCell>{record.parentModule} / {record.moduleName}</TableCell>
               <TableCell>{record.documentType}</TableCell>
               <TableCell>{formatTime(record.createdAt)}</TableCell>
               <TableCell>
-                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{record.status}</Badge>
+                <Badge variant="secondary">{record.status}</Badge>
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-1">
@@ -92,7 +92,7 @@ export function HistoryTable({ records, onDelete }: HistoryTableProps) {
                       <DialogHeader>
                         <DialogTitle>{record.title}</DialogTitle>
                       </DialogHeader>
-                      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-2 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+                      <div className="grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 sm:grid-cols-2">
                         <div>产品名称：{record.productName}</div>
                         <div>产品类型：{record.productType}</div>
                         <div>目标用户：{record.targetUser}</div>
@@ -101,7 +101,7 @@ export function HistoryTable({ records, onDelete }: HistoryTableProps) {
                           所属模块：{record.parentModule} / {record.moduleName}
                         </div>
                       </div>
-                      <pre className="whitespace-pre-wrap rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                      <pre className="whitespace-pre-wrap rounded-lg border border-zinc-200 bg-white p-4 text-sm leading-7 text-zinc-800">
                         {record.content}
                       </pre>
                     </DialogContent>
