@@ -1,78 +1,67 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpenText,
-  ClipboardList,
-  FileCheck2,
+  Download,
   FileText,
-  GraduationCap,
+  GalleryHorizontalEnd,
+  History,
   LibraryBig,
-  PlayCircle,
-  Presentation,
-  Route,
   ScrollText,
-  Sparkles,
-  Users,
+  WandSparkles,
 } from "lucide-react";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/empty-state";
+import { FeatureCard } from "@/components/feature-card";
+import { TemplateVisual } from "@/components/illustrations/template-visual";
+import { IllustrationImage } from "@/components/illustration-image";
+import { MotionSection } from "@/components/motion-section";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
-import { FeatureCard } from "@/components/feature-card";
-import { StatCard } from "@/components/stat-card";
-import { demoProjects, getModuleCount, templates } from "@/lib/mock-data";
-import { getHistoryRecords } from "@/lib/storage";
-import type { HistoryRecord } from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { demoProjects, getModuleCount, getTemplateConfig, templates } from "@/lib/mock-data";
+import { getHistoryRecords, saveActiveTemplate } from "@/lib/storage";
+import type { HistoryRecord, TemplateItem } from "@/lib/types";
 
 const features = [
   {
-    title: "产品说明书生成",
-    description: "围绕功能概述、页面说明、字段说明和注意事项生成正式说明书初稿。",
+    title: "结构化提示词生成",
+    description: "把模块信息、关键词、参考写法和输出要求整理成清晰可复制的提示词。",
+    icon: WandSparkles,
+  },
+  {
+    title: "API 自动生成正文",
+    description: "配置模型服务后，可由服务端 API Route 生成正文；未配置时仍可使用 Mock 文档演示。",
     icon: FileText,
   },
   {
-    title: "操作手册生成",
-    description: "按入口、步骤、结果反馈和常见提醒组织可交付的操作指导内容。",
-    icon: ClipboardList,
+    title: "模板化输出",
+    description: "支持产品说明书、操作手册、培训讲稿、售前介绍等常用结构。",
+    icon: GalleryHorizontalEnd,
   },
   {
-    title: "培训讲稿生成",
-    description: "面向讲解场景组织开场、演示流程、功能讲解和总结提示。",
-    icon: GraduationCap,
-  },
-  {
-    title: "售前介绍生成",
-    description: "帮助售前和产品团队快速形成清晰、克制、可演示的能力介绍。",
-    icon: Presentation,
+    title: "Word 导出与历史",
+    description: "本地保存文档记录，支持复查、复制、编辑和导出 Word。",
+    icon: Download,
   },
 ];
 
-const workflow = ["选择产品类型", "填写模块信息", "上传页面截图", "生成提示词", "回填 AI 输出", "编辑并导出文档"];
+const quickTypes = ["产品说明书", "操作手册", "培训讲稿", "售前介绍", "功能补充说明"];
 
-const demoFlow = [
-  "选择 Demo 项目",
-  "选择功能模块",
-  "填写关键词和参考写法",
-  "生成提示词",
-  "回填 AI 输出",
-  "编辑并导出 Word",
-];
-
-const roles = ["产品经理", "产品运营", "售前顾问", "实施交付", "培训人员"];
-
-const productScope = [
-  "SaaS 系统",
-  "CRM",
-  "ERP",
-  "HRM",
-  "BI 看板",
-  "内容管理系统",
-  "协作办公系统",
-  "低代码平台",
-];
+const templateVariants = [
+  "product-manual",
+  "feature-update",
+  "rewrite",
+  "operation-guide",
+  "training-script",
+  "presales",
+] as const;
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -83,9 +72,19 @@ function formatTime(value: string) {
   }).format(new Date(value));
 }
 
+function pickTemplateByLabel(label: string) {
+  if (label === "操作手册") return templates.find((template) => template.id === "operation-guide");
+  if (label === "培训讲稿") return templates.find((template) => template.id === "training-script");
+  if (label === "售前介绍") return templates.find((template) => template.id === "presales-introduction");
+  if (label === "功能补充说明") return templates.find((template) => template.id === "feature-addendum");
+  return templates.find((template) => template.id === "standard-product-manual");
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [historyCount, setHistoryCount] = useState(0);
+  const [task, setTask] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -107,178 +106,165 @@ export default function DashboardPage() {
     [historyCount]
   );
 
+  function enableTemplate(template: TemplateItem) {
+    const config = getTemplateConfig(template);
+    const saved = saveActiveTemplate({ ...template, ...config });
+    if (!saved) {
+      toast.error("模板偏好保存失败，请检查浏览器本地存储");
+      return;
+    }
+    toast.success(`已启用「${template.name}」`);
+    router.push("/workspace");
+  }
+
+  function startFromQuickType(label: string) {
+    const template = pickTemplateByLabel(label);
+    if (template) enableTemplate(template);
+  }
+
+  function startFromTask() {
+    if (!task.trim()) {
+      toast.info("可以先从一个文档目标开始，例如为某个功能模块生成操作手册");
+    }
+    router.push("/workspace");
+  }
+
   return (
-    <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:py-10">
-      <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <div className="grid gap-8 p-6 lg:grid-cols-[1.15fr_0.85fr] lg:p-10">
-          <div className="flex flex-col justify-center">
-            <Badge className="mb-5 w-fit bg-slate-100 text-slate-700 hover:bg-slate-100">
-              Prompt-assisted workflow
-            </Badge>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-              ProdDoc AI
-            </h1>
-            <p className="mt-4 text-xl font-medium text-zinc-800">
-              通用软件产品说明书与操作文档生成工作台
-            </p>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-zinc-600">
-              面向产品经理、产品运营、售前、交付和培训人员的产品文档生成工具。支持基于截图、模块信息、参考写法和输出模板，生成产品说明书、操作手册、培训讲稿、售前介绍和功能补充说明，适用于 SaaS、后台系统、CRM、ERP、HRM、BI 看板、内容管理系统、协作办公平台和低代码平台等多类软件产品。
-            </p>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-500">
-              第一版聚焦“可控生成”：系统负责整理高质量提示词、保存草稿和组织文档结构，用户保留对 AI 输出、正文编辑和交付文件的最终控制。
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link href="/workspace">
-                  进入工作台
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/templates">查看模板</Link>
-              </Button>
-            </div>
-            <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-              {["不接入真实模型 API", "本地草稿与历史", "Word 文档导出"].map((item) => (
-                <div key={item} className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                  <FileCheck2 className="size-4 text-slate-700" />
+    <main className="page-shell space-y-12">
+      <MotionSection className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-white p-6 shadow-sm dark:border-slate-800 dark:from-indigo-950/30 dark:via-slate-950 dark:to-slate-950 lg:p-10">
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-indigo-100/60 to-transparent dark:from-indigo-500/10" />
+        <div className="relative grid items-center gap-8 lg:grid-cols-[0.92fr_1.08fr]">
+        <div className="mx-auto max-w-3xl text-center lg:mx-0 lg:text-left">
+          <Badge className="mb-5 rounded-full bg-indigo-50 px-3 py-1 text-indigo-700 hover:bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-300">
+            AI 文档生成入口
+          </Badge>
+          <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
+            ProdDoc AI
+          </h1>
+          <p className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
+            通用软件产品说明书与操作文档生成工作台
+          </p>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400 lg:mx-0">
+            基于产品模块、关键词、参考写法和模板，辅助生成产品说明书、操作手册、培训讲稿和售前介绍。
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
+            <Button asChild size="lg" className="min-h-10 rounded-xl bg-indigo-600 transition hover:scale-[1.02] hover:bg-indigo-500">
+              <Link href="/workspace">
+                开始生成文档
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="min-h-10 rounded-xl bg-white transition hover:scale-[1.02] dark:bg-slate-900">
+              <Link href="/templates">查看模板</Link>
+            </Button>
+          </div>
+        </div>
+
+        <Card className="rounded-2xl border-slate-200 bg-white/90 shadow-soft transition-shadow dark:border-slate-800 dark:bg-slate-900/90">
+          <CardContent className="p-6">
+            <IllustrationImage
+              src="/images/characters/ai-doc-assistant.svg"
+              alt="AI 文档助手人物插画"
+              width={420}
+              height={303}
+              className="py-2"
+            />
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {["模块", "提示词", "文档"].map((item) => (
+                <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
                   {item}
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-            <div className="rounded-lg bg-white p-4 shadow-sm">
-              <div className="mb-4 flex items-center justify-between border-b border-zinc-100 pb-3">
-                <div>
-                  <div className="text-sm font-semibold text-zinc-950">工作台预览</div>
-                  <div className="text-xs text-zinc-500">从模块信息到可导出正文</div>
-                </div>
-                <Sparkles className="size-5 text-slate-700" />
-              </div>
-              <div className="mb-4 grid grid-cols-3 gap-2">
-                {["基础信息", "提示词", "文档预览"].map((item) => (
-                  <div key={item} className="rounded-md bg-zinc-100 px-2 py-2 text-center text-xs font-medium text-zinc-600">
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-3">
-                {workflow.map((item, index) => (
-                  <div key={item} className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                    <div className="flex size-7 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold text-white">
-                      {index + 1}
-                    </div>
-                    <span className="text-sm font-medium text-zinc-700">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
         </div>
-      </section>
+      </MotionSection>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <MotionSection className="mx-auto max-w-4xl">
+        <Card className="rounded-2xl border-slate-200 bg-white/95 shadow-soft dark:border-slate-800 dark:bg-slate-900/95">
+          <CardHeader className="pb-3 text-center">
+            <CardTitle className="text-xl text-slate-900 dark:text-slate-100">你想生成什么产品文档？</CardTitle>
+            <p className="text-sm text-slate-600 dark:text-slate-400">输入一个目标，或直接选择下方常用文档类型进入工作台。</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950 sm:flex-row">
+              <Input
+                value={task}
+                onChange={(event) => setTask(event.target.value)}
+                placeholder="例如：为 CRM 客户档案模块生成一份操作手册"
+                className="h-11 border-0 bg-white shadow-sm dark:bg-slate-900"
+              />
+              <Button type="button" className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500" onClick={startFromTask}>
+                开始
+              </Button>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {quickTypes.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => startFromQuickType(label)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </MotionSection>
+
+      <MotionSection className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (
           <FeatureCard key={feature.title} {...feature} />
         ))}
-      </section>
+      </MotionSection>
 
-      <section className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
+      <MotionSection>
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">生成流程</h2>
-            <p className="mt-1 text-sm text-zinc-500">使用提示词辅助流程，保留人工编辑与导出控制。</p>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">文档模板预览</h2>
+            <p className="mt-1 text-sm text-slate-500">选择模板后会影响工作台的文档类型、输出风格和提示词结构。</p>
           </div>
-          <PlayCircle className="size-5 text-zinc-500" />
+          <Button asChild variant="outline" className="w-fit rounded-xl bg-white dark:bg-slate-900">
+            <Link href="/templates">查看全部模板</Link>
+          </Button>
         </div>
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          {workflow.map((item, index) => (
-            <Card key={item} className="border-zinc-200 bg-white shadow-sm">
-              <CardContent className="p-4">
-                <div className="mb-4 flex size-8 items-center justify-center rounded-md bg-zinc-100 text-sm font-semibold text-zinc-700">
-                  {index + 1}
-                </div>
-                <div className="text-sm font-medium text-zinc-950">{item}</div>
-              </CardContent>
-            </Card>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {templates.map((template, index) => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => enableTemplate(template)}
+              className="hover-lift rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-indigo-200 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <TemplateVisual variant={templateVariants[index]} />
+              <div className="mt-4 text-base font-semibold text-slate-950">{template.name}</div>
+              <div className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{template.scenario}</div>
+            </button>
           ))}
         </div>
-      </section>
+      </MotionSection>
 
-      <section className="mt-8 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-        <Card className="border-zinc-200 bg-white shadow-sm">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Route className="size-5 text-slate-700" />
-              <CardTitle className="text-xl">典型使用流程</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-3">
-              {demoFlow.map((item, index) => (
-                <div key={item} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-500">Step {index + 1}</span>
-                    <div className="h-px w-10 bg-zinc-200" />
-                  </div>
-                  <div className="text-sm font-semibold text-zinc-950">{item}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-200 bg-white shadow-sm">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="size-5 text-slate-700" />
-              <CardTitle className="text-xl">适用角色</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {roles.map((role) => (
-                <Badge key={role} variant="secondary" className="bg-slate-100 px-3 py-1.5 text-slate-700">
-                  {role}
-                </Badge>
-              ))}
-            </div>
-            <p className="mt-4 text-sm leading-7 text-zinc-500">
-              适合需要把产品功能、页面操作和交付材料快速整理成正式文档的人。
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="mt-8">
-        <Card className="border-zinc-200 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl">适用产品类型</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {productScope.map((item) => (
-                <div key={item} className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-700">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <MotionSection className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
-      </section>
+      </MotionSection>
 
-      <section className="mt-8">
-        <Card className="border-zinc-200 bg-white shadow-sm">
+      <MotionSection>
+        <Card className="rounded-2xl border-slate-200 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/95">
           <CardHeader>
-            <CardTitle className="text-xl">最近生成记录</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <History className="size-5 text-indigo-600" />
+                <CardTitle className="text-xl font-semibold">最近生成记录</CardTitle>
+              </div>
+              <Button asChild variant="link" className="text-indigo-600">
+                <Link href="/history">查看全部</Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {records.length ? (
@@ -287,13 +273,13 @@ export default function DashboardPage() {
                   <Link
                     key={record.id}
                     href="/history"
-                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 transition hover:border-slate-300 hover:bg-white"
+                    className="hover-lift rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-indigo-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
                   >
-                    <div className="line-clamp-1 text-sm font-semibold text-zinc-950">{record.title}</div>
-                    <div className="mt-2 text-xs text-zinc-500">
+                    <div className="line-clamp-1 text-sm font-semibold text-slate-950">{record.title}</div>
+                    <div className="mt-2 text-xs text-slate-500">
                       {record.productType} · {record.documentType}
                     </div>
-                    <div className="mt-3 text-xs text-zinc-400">{formatTime(record.createdAt)}</div>
+                    <div className="mt-3 text-xs text-slate-400">{formatTime(record.createdAt)}</div>
                   </Link>
                 ))}
               </div>
@@ -301,11 +287,24 @@ export default function DashboardPage() {
               <EmptyState
                 title="暂无生成记录"
                 description="进入工作台创建第一份产品文档，保存后会在这里展示最近记录。"
+                illustration={
+                  <IllustrationImage
+                    src="/images/characters/empty-state-character.svg"
+                    alt="暂无生成记录插画"
+                    width={280}
+                    height={210}
+                  />
+                }
+                action={
+                  <Button asChild className="rounded-xl bg-indigo-600 hover:bg-indigo-500">
+                    <Link href="/workspace">去工作台</Link>
+                  </Button>
+                }
               />
             )}
           </CardContent>
         </Card>
-      </section>
+      </MotionSection>
     </main>
   );
 }

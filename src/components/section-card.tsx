@@ -16,9 +16,9 @@ export function SectionCard({
   className,
 }: SectionCardProps) {
   return (
-    <Card className={cn("border-zinc-200 bg-white shadow-sm", className)}>
+    <Card className={cn("border-zinc-200 bg-white/95 shadow-sm backdrop-blur", className)}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base text-zinc-950">{title}</CardTitle>
         {description ? (
           <p className="text-sm leading-6 text-zinc-500">{description}</p>
         ) : null}
