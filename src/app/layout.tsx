@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -18,13 +19,16 @@ export default function RootLayout({
     <html
       lang="zh-CN"
       className="h-full antialiased"
+      suppressHydrationWarning
     >
-      <body className="min-h-full bg-zinc-50 text-zinc-950">
-        <TooltipProvider>
-          <AppHeader />
-          {children}
-          <Toaster richColors position="top-center" />
-        </TooltipProvider>
+      <body className="min-h-full bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+        <ThemeProvider>
+          <TooltipProvider>
+            <AppHeader />
+            {children}
+            <Toaster richColors position="top-center" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
