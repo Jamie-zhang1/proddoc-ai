@@ -45,6 +45,8 @@ import {
   getGenerationPreferences,
   getModelParams,
   getStorageUsageKB,
+  getIndexedDBUsageKB,
+  getIndexedDBQuotaMB,
   importAllData,
   saveExportSettings,
   saveGenerationPreferences,
@@ -115,11 +117,15 @@ export default function SettingsPage() {
     includeMetadata: true,
   });
   const [storageUsage, setStorageUsage] = useState(0);
+  const [idbUsageKB, setIdbUsageKB] = useState<number | null>(null);
+  const [idbQuotaMB, setIdbQuotaMB] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshStorage = useCallback(() => {
     setStorageUsage(getStorageUsageKB());
+    void getIndexedDBUsageKB().then(setIdbUsageKB);
+    void getIndexedDBQuotaMB().then(setIdbQuotaMB);
   }, []);
 
   useEffect(() => {
@@ -612,7 +618,7 @@ export default function SettingsPage() {
               <div className="text-sm text-slate-400">存储使用量</div>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{storageUsage}</span>
-                <span className="text-sm text-slate-500">KB / 5 MB</span>
+                <span className="text-sm text-slate-500">KB / 5 MB (localStorage)</span>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                 <div
@@ -620,6 +626,19 @@ export default function SettingsPage() {
                   style={{ width: `${Math.min((storageUsage / 5120) * 100, 100)}%` }}
                 />
               </div>
+              {idbUsageKB !== null && (
+                <div className="mt-3">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{idbUsageKB}</span>
+                    <span className="text-sm text-slate-500">
+                      KB / {idbQuotaMB !== null ? `${idbQuotaMB} MB` : "—"} (IndexedDB)
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    截图和大型文档内容自动存储在 IndexedDB 中，不受 5MB 限制。
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">

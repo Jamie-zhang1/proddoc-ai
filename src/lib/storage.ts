@@ -8,9 +8,11 @@ import type {
   HistoryActivity,
   HistoryRecord,
   ModelParams,
+  ScreenshotItem,
   WorkspaceDraft,
 } from "@/lib/types";
 import { compressImage, estimateLocalStorageUsage, hasStorageCapacity } from "@/lib/image-compress";
+import { idbGet, idbSet, idbDelete, idbClear, estimateIDBUsage } from "@/lib/db";
 
 const historyKey = "proddoc-ai-history";
 const draftKey = "proddoc-ai-workspace-draft";
@@ -60,12 +62,43 @@ export function getHistoryRecords(): HistoryRecord[] {
   }
 }
 
+/**
+ * Load history records and hydrate any content stored in IndexedDB.
+ * Large document content (>50KB) is offloaded to IndexedDB to avoid
+ * hitting the 5MB localStorage limit.
+ */
+export async function getHistoryRecordsAsync(): Promise<HistoryRecord[]> {
+  const records = getHistoryRecords();
+  const hydrated = await Promise.all(
+    records.map(async (record) => {
+      if (record.content) return record;
+      // Empty content may indicate it was offloaded to IndexedDB
+      const idbContent = await idbGet<{ content: string }>("documents", `history-${record.id}`);
+      if (idbContent?.content) {
+        return { ...record, content: idbContent.content };
+      }
+      return record;
+    })
+  );
+  return hydrated;
+}
+
 export function saveHistoryRecord(record: HistoryRecord) {
   if (!canUseStorage()) return false;
 
   try {
     const records = getHistoryRecords();
-    localStorage.setItem(historyKey, JSON.stringify([record, ...records]));
+
+    // Offload large content to IndexedDB to avoid localStorage quota
+    const CONTENT_THRESHOLD = 50 * 1024; // 50KB
+    let recordToSave = record;
+    if (record.content && record.content.length > CONTENT_THRESHOLD) {
+      // Store content in IndexedDB (fire-and-forget for sync function)
+      void idbSet("documents", `history-${record.id}`, { content: record.content });
+      recordToSave = { ...record, content: "" };
+    }
+
+    localStorage.setItem(historyKey, JSON.stringify([recordToSave, ...records]));
 
     // Also log as a document activity
     addActivity({
@@ -90,6 +123,8 @@ export function deleteHistoryRecord(id: string) {
   try {
     const nextRecords = getHistoryRecords().filter((record) => record.id !== id);
     localStorage.setItem(historyKey, JSON.stringify(nextRecords));
+    // Clean up IndexedDB content if it was offloaded
+    void idbDelete("documents", `history-${id}`);
     return nextRecords;
   } catch {
     return getHistoryRecords();
@@ -111,7 +146,25 @@ export async function saveWorkspaceDraft(draft: WorkspaceDraft): Promise<boolean
     optimizedDraft = { ...draft, screenshots: compressed };
   }
 
-  const serialized = JSON.stringify(optimizedDraft);
+  // Offload screenshots to IndexedDB to avoid localStorage quota
+  let draftToSave = optimizedDraft;
+  if (optimizedDraft.screenshots && optimizedDraft.screenshots.length > 0) {
+    // Store each screenshot in IndexedDB
+    await Promise.all(
+      optimizedDraft.screenshots.map(async (s) => {
+        await idbSet("screenshots", s.id, { id: s.id, name: s.name, dataUrl: s.dataUrl });
+      })
+    );
+    // Replace screenshots with lightweight references in localStorage
+    const refs: ScreenshotItem[] = optimizedDraft.screenshots.map((s) => ({
+      id: s.id,
+      name: s.name,
+      dataUrl: "", // placeholder — real data lives in IndexedDB
+    }));
+    draftToSave = { ...optimizedDraft, screenshots: refs };
+  }
+
+  const serialized = JSON.stringify(draftToSave);
   const needed = serialized.length * 2; // UTF-16
 
   try {
@@ -142,6 +195,25 @@ export function getWorkspaceDraft(): WorkspaceDraft | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Load workspace draft and hydrate screenshots from IndexedDB.
+ * Screenshots with empty dataUrl are references — the real data lives in IndexedDB.
+ */
+export async function getWorkspaceDraftAsync(): Promise<WorkspaceDraft | null> {
+  const draft = getWorkspaceDraft();
+  if (!draft || !draft.screenshots.length) return draft;
+
+  const hydrated = await Promise.all(
+    draft.screenshots.map(async (s) => {
+      if (s.dataUrl) return s; // already has data
+      const idbItem = await idbGet<ScreenshotItem>("screenshots", s.id);
+      return idbItem ?? s;
+    })
+  );
+
+  return { ...draft, screenshots: hydrated };
 }
 
 export function clearWorkspaceDraft() {
@@ -476,6 +548,26 @@ export function getStorageUsageKB(): number {
   return Math.round(total / 1024);
 }
 
+/**
+ * Get IndexedDB storage usage estimate.
+ * Returns usage in KB, or null if the API is unavailable.
+ */
+export async function getIndexedDBUsageKB(): Promise<number | null> {
+  const estimate = await estimateIDBUsage();
+  if (!estimate) return null;
+  return Math.round(estimate.usage / 1024);
+}
+
+/**
+ * Get IndexedDB quota estimate in MB.
+ * Returns quota in MB, or null if the API is unavailable.
+ */
+export async function getIndexedDBQuotaMB(): Promise<number | null> {
+  const estimate = await estimateIDBUsage();
+  if (!estimate) return null;
+  return Math.round(estimate.quota / (1024 * 1024));
+}
+
 export function clearAllData(): boolean {
   if (!canUseStorage()) return false;
 
@@ -483,6 +575,9 @@ export function clearAllData(): boolean {
     for (const key of allStorageKeys) {
       localStorage.removeItem(key);
     }
+    // Also clear IndexedDB stores
+    void idbClear("documents");
+    void idbClear("screenshots");
     return true;
   } catch {
     return false;

@@ -18,7 +18,7 @@ import {
 import {
   getActiveTemplate,
   getGenerationPreferences,
-  getWorkspaceDraft,
+  getWorkspaceDraftAsync,
   saveWorkspaceDraft,
 } from "@/lib/storage";
 import type { GenerationMode, WorkspaceDraft } from "@/lib/types";
@@ -76,41 +76,43 @@ export default function WorkspacePage() {
         setShowTour(true);
       }
 
-      const restored = getWorkspaceDraft();
-      if (restored && !userInteractedRef.current) {
-        setDraft(restored);
-        const matchedProject = demoProjects.find((project) => project.productName === restored.productName);
-        if (matchedProject) setSelectedProjectId(matchedProject.id);
-      } else if (!userInteractedRef.current) {
-        const preferences = getGenerationPreferences();
-        if (preferences) {
+      void (async () => {
+        const restored = await getWorkspaceDraftAsync();
+        if (restored && !userInteractedRef.current) {
+          setDraft(restored);
+          const matchedProject = demoProjects.find((project) => project.productName === restored.productName);
+          if (matchedProject) setSelectedProjectId(matchedProject.id);
+        } else if (!userInteractedRef.current) {
+          const preferences = getGenerationPreferences();
+          if (preferences) {
+            setDraft((current) => ({
+              ...current,
+              generationMode: preferences.generationMode,
+              documentType: preferences.documentType,
+              detailLevel: preferences.detailLevel,
+              outputStyle: preferences.outputStyle,
+            }));
+          }
+        }
+
+        const activeTemplate = getActiveTemplate();
+        if (activeTemplate && !userInteractedRef.current) {
+          setActiveTemplateName(activeTemplate.name);
           setDraft((current) => ({
             ...current,
-            generationMode: preferences.generationMode,
-            documentType: preferences.documentType,
-            detailLevel: preferences.detailLevel,
-            outputStyle: preferences.outputStyle,
+            documentType: activeTemplate.documentType,
+            outputStyle: activeTemplate.outputStyle,
+            activeTemplateId: activeTemplate.id,
+            activeTemplateName: activeTemplate.name,
+            activeTemplateStructure: activeTemplate.structure,
+            customTemplate: activeTemplate.customTemplate,
+            referenceWriting: current.referenceWriting.includes(activeTemplate.name)
+              ? current.referenceWriting
+              : `${current.referenceWriting}\n${getTemplateInstruction(activeTemplate)}`,
           }));
+          toast.success(`已应用「${activeTemplate.name}」`);
         }
-      }
-
-      const activeTemplate = getActiveTemplate();
-      if (activeTemplate && !userInteractedRef.current) {
-        setActiveTemplateName(activeTemplate.name);
-        setDraft((current) => ({
-          ...current,
-          documentType: activeTemplate.documentType,
-          outputStyle: activeTemplate.outputStyle,
-          activeTemplateId: activeTemplate.id,
-          activeTemplateName: activeTemplate.name,
-          activeTemplateStructure: activeTemplate.structure,
-          customTemplate: activeTemplate.customTemplate,
-          referenceWriting: current.referenceWriting.includes(activeTemplate.name)
-            ? current.referenceWriting
-            : `${current.referenceWriting}\n${getTemplateInstruction(activeTemplate)}`,
-        }));
-        toast.success(`已应用「${activeTemplate.name}」`);
-      }
+      })();
 
       setDraftReady(true);
     }, 0);
