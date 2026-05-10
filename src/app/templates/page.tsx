@@ -129,10 +129,6 @@ export default function TemplatesPage() {
         />
       </MotionSection>
 
-      <MotionSection>
-        <TemplateImporter onSaved={() => setCustomTemplates(getCustomTemplates())} />
-      </MotionSection>
-
       {/* Search and Filter */}
       <MotionSection className="space-y-4">
         <div className="relative">
@@ -279,6 +275,10 @@ export default function TemplatesPage() {
           </div>
         </MotionSection>
       ) : null}
+
+      <MotionSection>
+        <TemplateImporter onSaved={() => setCustomTemplates(getCustomTemplates())} />
+      </MotionSection>
     </main>
   );
 }
