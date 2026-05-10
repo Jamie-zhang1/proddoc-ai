@@ -283,7 +283,7 @@ export function GenerationPanel({
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
                 📄 生成 Mock 文档
               </Button>
-              <Button type="button" variant="ghost" size="icon" className="shrink-0 rounded-xl" onClick={onClear} disabled={busy}>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0 rounded-xl" onClick={onClear} disabled={busy} aria-label="清空工作区">
                 <Eraser className="size-4" />
               </Button>
             </div>

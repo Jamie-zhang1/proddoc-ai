@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -217,6 +217,18 @@ export function DocumentPreview({
     toast.success("结果已清空");
   }
 
+  // Close export dialog on Escape
+  useEffect(() => {
+    if (!showExportDialog) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowExportDialog(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showExportDialog]);
+
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -341,7 +353,7 @@ export function DocumentPreview({
 
       {/* Export Format Dialog */}
       {showExportDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="导出格式选择">
           <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">导出格式</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">选择导出的 Word 文档格式</p>

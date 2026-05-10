@@ -27,7 +27,7 @@ export function IllustrationImage({
         height={height}
         className={cn("h-auto max-w-full object-contain", imageClassName)}
         style={{ width: "auto", height: "auto" }}
-        loading="eager"
+        loading="lazy"
       />
     </div>
   );

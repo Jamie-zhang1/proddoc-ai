@@ -13,6 +13,7 @@ import type {
   TemplateSectionPattern,
   WritingPattern,
 } from "@/lib/types";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 type ChatCompletionResponse = {
   choices?: Array<{ message?: { content?: string } }>;
@@ -390,6 +391,11 @@ JSON 结构：
 }
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+  if (!checkRateLimit(ip, 10, 60000)) {
+    return NextResponse.json<TemplateExtractResponse>({ ok: false, error: "请求过于频繁，请稍后再试" }, { status: 429 });
+  }
+
   const apiKey = process.env.AI_API_KEY;
   const baseUrl = process.env.AI_BASE_URL;
   const model = process.env.AI_MODEL;

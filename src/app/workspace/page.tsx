@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronDown, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { ModuleSelector } from "@/components/workspace/module-selector";
 import { DocumentConfig } from "@/components/workspace/document-config";
-import { GenerationPanel } from "@/components/workspace/generation-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { buildPrompt } from "@/lib/prompt-builder";
@@ -23,7 +23,25 @@ import {
 } from "@/lib/storage";
 import type { GenerationMode, WorkspaceDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { TourOverlay, isTourCompleted } from "@/components/tour-overlay";
+import { isTourCompleted } from "@/components/tour-overlay";
+import { SkeletonCard } from "@/components/skeleton";
+
+const GenerationPanel = dynamic(
+  () => import("@/components/workspace/generation-panel").then((mod) => ({ default: mod.GenerationPanel })),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <SkeletonCard />
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+const TourOverlay = dynamic(
+  () => import("@/components/tour-overlay").then((mod) => ({ default: mod.TourOverlay })),
+  { ssr: false }
+);
 
 function FlowStep({
   index,
@@ -121,6 +139,7 @@ export default function WorkspacePage() {
   }, []);
 
   // Close mode popover on outside click
+  // Close mode popover on outside click
   useEffect(() => {
     if (!showModePopover) return;
     function handleClickOutside(e: MouseEvent) {
@@ -131,6 +150,18 @@ export default function WorkspacePage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showModePopover]);
+
+  // Close reset dialog on Escape
+  useEffect(() => {
+    if (!showResetConfirm) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowResetConfirm(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showResetConfirm]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -202,6 +233,7 @@ export default function WorkspacePage() {
                   toast.info("模板已移除");
                 }}
                 className="ml-1 inline-flex items-center gap-1 rounded-full border border-emerald-300 px-2 py-0.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                aria-label="移除当前模板"
               >
                 <X className="size-3" />
                 移除
@@ -336,7 +368,7 @@ export default function WorkspacePage() {
 
       {/* Reset Confirmation Dialog */}
       {showResetConfirm ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="重置确认">
           <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">确定要清空所有内容吗？</h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">

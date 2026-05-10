@@ -79,7 +79,7 @@ export function ScreenshotUploader({ screenshots, onChange }: ScreenshotUploader
           {screenshots.map((item) => (
             <div key={item.id} className="group relative overflow-hidden rounded-lg border border-zinc-200 bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.dataUrl} alt={item.name} className="h-24 w-full object-cover" />
+              <img src={item.dataUrl} alt={item.name} className="h-24 w-full object-cover" loading="lazy" />
               <div className="flex items-center justify-between gap-2 p-2">
                 <div className="flex min-w-0 items-center gap-1.5 text-xs text-zinc-600">
                   <ImagePlus className="size-3.5 shrink-0" />
@@ -90,6 +90,7 @@ export function ScreenshotUploader({ screenshots, onChange }: ScreenshotUploader
                   size="icon-xs"
                   variant="ghost"
                   onClick={() => onChange(screenshots.filter((screenshot) => screenshot.id !== item.id))}
+                  aria-label={`删除 ${item.name}`}
                 >
                   <Trash2 className="size-3.5" />
                 </Button>

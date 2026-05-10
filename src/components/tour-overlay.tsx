@@ -44,8 +44,13 @@ export function TourOverlay() {
   const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
-    // Clear the flag so next workspace visit shows tour again
-    // (only if user hasn't completed it)
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        complete();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   if (!visible) return null;
@@ -72,7 +77,12 @@ export function TourOverlay() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label="新手引导"
+    >
       {/* Ambient glow */}
       <div
         className={`absolute inset-0 opacity-30 transition-all duration-700 bg-gradient-to-br ${current.color}`}
@@ -88,6 +98,7 @@ export function TourOverlay() {
           type="button"
           onClick={complete}
           className="absolute right-4 top-5 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          aria-label="关闭引导"
         >
           <X className="size-4" />
         </button>

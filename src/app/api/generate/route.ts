@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ApiGenerateRequest, ApiGenerateResponse, ApiStreamChunk } from "@/lib/types";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -92,6 +93,11 @@ function setCache(key: string, content: string) {
 /* ------------------------------------------------------------------ */
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+  if (!checkRateLimit(ip, 10, 60000)) {
+    return NextResponse.json<ApiGenerateResponse>({ error: "请求过于频繁，请稍后再试" }, { status: 429 });
+  }
+
   const apiKey = process.env.AI_API_KEY;
   const baseUrl = process.env.AI_BASE_URL;
   const model = process.env.AI_MODEL;
@@ -111,7 +117,20 @@ export async function POST(request: Request) {
     return jsonError("缺少完整提示词，无法生成正文。");
   }
 
+  // Input validation
+  if (body.prompt.length > 50000) {
+    return jsonError("提示词长度超过限制（最大 50000 字符）。");
+  }
+
   const temperature = body.temperature ?? 0.7;
+  if (temperature < 0 || temperature > 2) {
+    return jsonError("temperature 值必须在 0 到 2 之间。");
+  }
+
+  const allowedDocumentTypes = ["产品说明书", "操作手册", "培训讲稿", "售前介绍", "功能补充说明"];
+  if (body.documentType && !allowedDocumentTypes.includes(body.documentType)) {
+    return jsonError(`无效的文档类型：${body.documentType}。允许的类型：${allowedDocumentTypes.join("、")}。`);
+  }
 
   /* ---- Non-streaming (cache-aware) path ---- */
   if (!body.stream) {
