@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileUp, Loader2, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { CharacterCount } from "@/components/character-count";
+import { ProgressBar } from "@/components/progress-bar";
 import { ReferenceMaterialUploader } from "@/components/reference-material-uploader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { saveCustomTemplate } from "@/lib/storage";
+import {
+  clearTemplateParseState,
+  getTemplateParseState,
+  saveCustomTemplate,
+  saveTemplateParseState,
+} from "@/lib/storage";
 import type { CustomTemplate, ReferenceFile, TemplateExtractResponse } from "@/lib/types";
 
 type TemplateImporterProps = {
@@ -21,26 +27,86 @@ export function TemplateImporter({ onSaved }: TemplateImporterProps) {
   const [files, setFiles] = useState<ReferenceFile[]>([]);
   const [requirement, setRequirement] = useState("");
   const [extracting, setExtracting] = useState(false);
+  const [parseProgress, setParseProgress] = useState(0);
+  const [parseStep, setParseStep] = useState("");
   const [template, setTemplate] = useState<CustomTemplate | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const parsedFiles = files.filter((file) => file.status === "parsed" && file.extractedText.trim());
   const sourceText = parsedFiles.map((file) => `文件：${file.name}\n${file.extractedText}`).join("\n\n---\n\n");
   const sourceFileName = parsedFiles.map((file) => file.name).join("、") || files[0]?.name || "旧说明书";
 
-  async function extractTemplate() {
-    if (!sourceText.trim()) {
-      toast.warning("请先上传并完成解析至少一个旧文件");
-      return;
+  // Restore parse state on mount
+  useEffect(() => {
+    const saved = getTemplateParseState();
+    if (saved && saved.isParsing) {
+      setExtracting(true);
+      setParseProgress(saved.progress);
+      setParseStep("正在恢复上次解析...");
+      // Re-trigger extraction
+      void extractTemplateFromState(saved.sourceText, saved.fileName);
+    } else if (saved && saved.result) {
+      // Previous parse completed but wasn't saved
+      setParseProgress(100);
+      setParseStep("解析完成");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Save parse state when it changes
+  useEffect(() => {
+    if (extracting && sourceText.trim()) {
+      saveTemplateParseState({
+        isParsing: true,
+        progress: parseProgress,
+        sourceText,
+        fileName: sourceFileName,
+      });
+    }
+  }, [extracting, parseProgress, sourceText, sourceFileName]);
+
+  function simulateProgress(onComplete: () => Promise<void>) {
+    setParseProgress(0);
+    setParseStep("上传文件...");
+
+    const steps = [
+      { at: 10, label: "上传文件..." },
+      { at: 30, label: "解析结构..." },
+      { at: 60, label: "提取模板..." },
+      { at: 85, label: "生成模板规则..." },
+    ];
+    let stepIdx = 0;
+
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setParseProgress((prev) => {
+        if (prev >= 95) return prev;
+        const next = prev + Math.random() * 5 + 2;
+        // Update step label
+        while (stepIdx < steps.length && next >= steps[stepIdx].at) {
+          setParseStep(steps[stepIdx].label);
+          stepIdx++;
+        }
+        return Math.min(95, next);
+      });
+    }, 400);
+
+    void onComplete().finally(() => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      setParseProgress(100);
+      setParseStep("完成");
+    });
+  }
+
+  async function extractTemplateFromState(srcText: string, fileName: string) {
     setExtracting(true);
     try {
       const response = await fetch("/api/templates/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sourceText,
-          fileName: sourceFileName,
+          sourceText: srcText,
+          fileName,
           userRequirement: requirement,
         }),
       });
@@ -54,12 +120,51 @@ export function TemplateImporter({ onSaved }: TemplateImporterProps) {
       }
 
       setTemplate(data.template);
+      clearTemplateParseState();
       toast.success("已从旧文件中解析出可复用模板");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "模板解析失败，请稍后重试。");
     } finally {
       setExtracting(false);
     }
+  }
+
+  async function extractTemplate() {
+    if (!sourceText.trim()) {
+      toast.warning("请先上传并完成解析至少一个旧文件");
+      return;
+    }
+
+    setExtracting(true);
+    simulateProgress(async () => {
+      try {
+        const response = await fetch("/api/templates/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceText,
+            fileName: sourceFileName,
+            userRequirement: requirement,
+          }),
+        });
+        const data = (await response.json().catch(() => ({
+          ok: false,
+          error: "模板解析结果无法读取。",
+        }))) as TemplateExtractResponse;
+
+        if (!response.ok || !data.ok || !data.template) {
+          throw new Error(data.error || "模板解析失败，请稍后重试。");
+        }
+
+        setTemplate(data.template);
+        clearTemplateParseState();
+        toast.success("已从旧文件中解析出可复用模板");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "模板解析失败，请稍后重试。");
+      } finally {
+        setExtracting(false);
+      }
+    });
   }
 
   function updateTemplate(patch: Partial<CustomTemplate>) {
@@ -127,6 +232,20 @@ export function TemplateImporter({ onSaved }: TemplateImporterProps) {
         {extracting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
         {extracting ? "正在解析模板..." : "解析生成模板"}
       </Button>
+
+      {extracting && (
+        <div className="rounded-2xl border border-indigo-100 bg-white p-4 dark:border-indigo-500/20 dark:bg-slate-900">
+          <ProgressBar
+            value={parseProgress}
+            label={parseStep}
+            showPercentage
+            color="from-indigo-500 to-violet-500"
+          />
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            正在解析旧文件结构，这可能需要一些时间...
+          </p>
+        </div>
+      )}
 
       {template ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">

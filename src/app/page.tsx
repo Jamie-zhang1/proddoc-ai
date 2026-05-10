@@ -2,75 +2,58 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
-  BookOpenText,
   Download,
   FileText,
   GalleryHorizontalEnd,
-  History,
-  LibraryBig,
-  ScrollText,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState } from "@/components/empty-state";
-import { FeatureCard } from "@/components/feature-card";
-import { TemplateVisual } from "@/components/illustrations/template-visual";
 import { IllustrationImage } from "@/components/illustration-image";
 import { MotionSection } from "@/components/motion-section";
-import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { demoProjects, getModuleCount, getTemplateConfig, templates } from "@/lib/mock-data";
-import { getHistoryRecords, saveActiveTemplate } from "@/lib/storage";
-import type { HistoryRecord, TemplateItem } from "@/lib/types";
+import { getTemplateConfig, templates } from "@/lib/mock-data";
+import { saveActiveTemplate } from "@/lib/storage";
+import type { TemplateItem } from "@/lib/types";
 
 const features = [
   {
     title: "结构化提示词生成",
     description: "把模块信息、关键词、参考写法和输出要求整理成清晰可复制的提示词。",
     icon: WandSparkles,
+    href: "/workspace",
+    action: "去生成提示词",
   },
   {
     title: "API 自动生成正文",
     description: "配置模型服务后，可由服务端 API Route 生成正文；未配置时仍可使用 Mock 文档演示。",
     icon: FileText,
+    href: "/workspace",
+    action: "去生成文档",
   },
   {
     title: "模板化输出",
     description: "支持产品说明书、操作手册、培训讲稿、售前介绍等常用结构。",
     icon: GalleryHorizontalEnd,
+    href: "/templates",
+    action: "浏览模板",
   },
   {
     title: "Word 导出与历史",
     description: "本地保存文档记录，支持复查、复制、编辑和导出 Word。",
     icon: Download,
+    href: "/history",
+    action: "查看历史",
   },
 ];
 
 const quickTypes = ["产品说明书", "操作手册", "培训讲稿", "售前介绍", "功能补充说明"];
 
-const templateVariants = [
-  "product-manual",
-  "feature-update",
-  "rewrite",
-  "operation-guide",
-  "training-script",
-  "presales",
-] as const;
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
 
 function pickTemplateByLabel(label: string) {
   if (label === "操作手册") return templates.find((template) => template.id === "operation-guide");
@@ -82,29 +65,7 @@ function pickTemplateByLabel(label: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [records, setRecords] = useState<HistoryRecord[]>([]);
-  const [historyCount, setHistoryCount] = useState(0);
   const [task, setTask] = useState("");
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const allRecords = getHistoryRecords();
-      setRecords(allRecords.slice(0, 3));
-      setHistoryCount(allRecords.length);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  const stats = useMemo(
-    () => [
-      { label: "Demo 项目数", value: demoProjects.length, icon: LibraryBig, hint: "覆盖通用软件产品类型" },
-      { label: "模块数量", value: getModuleCount(), icon: ScrollText, hint: "可直接选择并生成初稿" },
-      { label: "已生成文档数", value: historyCount, icon: FileText, hint: "来自当前浏览器历史" },
-      { label: "可用模板数", value: templates.length, icon: BookOpenText, hint: "支持多类输出结构" },
-    ],
-    [historyCount]
-  );
 
   function enableTemplate(template: TemplateItem) {
     const config = getTemplateConfig(template);
@@ -131,10 +92,10 @@ export default function DashboardPage() {
 
   return (
     <main className="page-shell space-y-12">
-      <MotionSection className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-white p-6 shadow-sm dark:border-slate-800 dark:from-indigo-950/30 dark:via-slate-950 dark:to-slate-950 lg:p-10">
+      <MotionSection className="grid-bg relative overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-white p-4 shadow-sm dark:border-slate-800 dark:from-indigo-950/30 dark:via-slate-950 dark:to-slate-950 sm:p-6 lg:p-10">
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-indigo-100/60 to-transparent dark:from-indigo-500/10" />
         <div className="relative grid items-center gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-        <div className="mx-auto max-w-3xl text-center lg:mx-0 lg:text-left">
+        <div className="text-center lg:text-left">
           <Badge className="mb-5 rounded-full bg-indigo-50 px-3 py-1 text-indigo-700 hover:bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-300">
             AI 文档生成入口
           </Badge>
@@ -160,7 +121,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <Card className="rounded-2xl border-slate-200 bg-white/90 shadow-soft transition-shadow dark:border-slate-800 dark:bg-slate-900/90">
+        <Card className="animate-float rounded-2xl border-slate-200 bg-white/90 shadow-soft transition-shadow dark:border-slate-800 dark:bg-slate-900/90">
           <CardContent className="p-6">
             <IllustrationImage
               src="/images/characters/ai-doc-assistant.svg"
@@ -170,10 +131,19 @@ export default function DashboardPage() {
               className="py-2"
             />
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {["模块", "提示词", "文档"].map((item) => (
-                <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
-                  {item}
-                </div>
+              {[
+                { label: "开始生成", href: "/workspace", icon: "🚀" },
+                { label: "浏览模板", href: "/templates", icon: "📋" },
+                { label: "查看历史", href: "/history", icon: "🕐" },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300"
+                >
+                  <span className="mr-1">{item.icon}</span>
+                  {item.label}
+                </Link>
               ))}
             </div>
           </CardContent>
@@ -181,7 +151,7 @@ export default function DashboardPage() {
         </div>
       </MotionSection>
 
-      <MotionSection className="mx-auto max-w-4xl">
+      <MotionSection>
         <Card className="rounded-2xl border-slate-200 bg-white/95 shadow-soft dark:border-slate-800 dark:bg-slate-900/95">
           <CardHeader className="pb-3 text-center">
             <CardTitle className="text-xl text-slate-900 dark:text-slate-100">你想生成什么产品文档？</CardTitle>
@@ -193,7 +163,7 @@ export default function DashboardPage() {
                 value={task}
                 onChange={(event) => setTask(event.target.value)}
                 placeholder="例如：为 CRM 客户档案模块生成一份操作手册"
-                className="h-11 border-0 bg-white shadow-sm dark:bg-slate-900"
+                className="h-11 border-0 bg-white shadow-sm placeholder:text-slate-400 dark:bg-slate-900 dark:placeholder:text-slate-500"
               />
               <Button type="button" className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500" onClick={startFromTask}>
                 开始
@@ -215,96 +185,28 @@ export default function DashboardPage() {
         </Card>
       </MotionSection>
 
-      <MotionSection className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {features.map((feature) => (
-          <FeatureCard key={feature.title} {...feature} />
-        ))}
-      </MotionSection>
-
-      <MotionSection>
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">文档模板预览</h2>
-            <p className="mt-1 text-sm text-slate-500">选择模板后会影响工作台的文档类型、输出风格和提示词结构。</p>
-          </div>
-          <Button asChild variant="outline" className="w-fit rounded-xl bg-white dark:bg-slate-900">
-            <Link href="/templates">查看全部模板</Link>
-          </Button>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {templates.map((template, index) => (
-            <button
-              key={template.id}
-              type="button"
-              onClick={() => enableTemplate(template)}
-              className="hover-lift rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-indigo-200 dark:border-slate-800 dark:bg-slate-900"
+      <MotionSection className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {features.map((feature) => {
+          const Icon = feature.icon;
+          return (
+            <Link
+              key={feature.title}
+              href={feature.href}
+              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/30"
             >
-              <TemplateVisual variant={templateVariants[index]} />
-              <div className="mt-4 text-base font-semibold text-slate-950">{template.name}</div>
-              <div className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{template.scenario}</div>
-            </button>
-          ))}
-        </div>
+              <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition group-hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400">
+                <Icon className="size-5" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{feature.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{feature.description}</p>
+              <div className="mt-3 text-sm font-medium text-indigo-600 transition group-hover:text-indigo-500 dark:text-indigo-400">
+                {feature.action} →
+              </div>
+            </Link>
+          );
+        })}
       </MotionSection>
 
-      <MotionSection className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
-        ))}
-      </MotionSection>
-
-      <MotionSection>
-        <Card className="rounded-2xl border-slate-200 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/95">
-          <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <History className="size-5 text-indigo-600" />
-                <CardTitle className="text-xl font-semibold">最近生成记录</CardTitle>
-              </div>
-              <Button asChild variant="link" className="text-indigo-600">
-                <Link href="/history">查看全部</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {records.length ? (
-              <div className="grid gap-3 md:grid-cols-3">
-                {records.map((record) => (
-                  <Link
-                    key={record.id}
-                    href="/history"
-                    className="hover-lift rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-indigo-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-                  >
-                    <div className="line-clamp-1 text-sm font-semibold text-slate-950">{record.title}</div>
-                    <div className="mt-2 text-xs text-slate-500">
-                      {record.productType} · {record.documentType}
-                    </div>
-                    <div className="mt-3 text-xs text-slate-400">{formatTime(record.createdAt)}</div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无生成记录"
-                description="进入工作台创建第一份产品文档，保存后会在这里展示最近记录。"
-                illustration={
-                  <IllustrationImage
-                    src="/images/characters/empty-state-character.svg"
-                    alt="暂无生成记录插画"
-                    width={280}
-                    height={210}
-                  />
-                }
-                action={
-                  <Button asChild className="rounded-xl bg-indigo-600 hover:bg-indigo-500">
-                    <Link href="/workspace">去工作台</Link>
-                  </Button>
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
-      </MotionSection>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -32,9 +33,6 @@ type DocumentPreviewProps = {
   onGenerateDocument?: () => void;
   generating?: boolean;
 };
-
-const previewLimit = 500;
-const longContentThreshold = 3000;
 
 function createId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -123,6 +121,7 @@ export function DocumentPreview({
   generating,
 }: DocumentPreviewProps) {
   const router = useRouter();
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const trimmedContent = content.trim();
   const hasContent = trimmedContent.length > 0;
   const title = `${draft.moduleName || "功能模块"}${draft.documentType}`;
@@ -131,9 +130,6 @@ export function DocumentPreview({
   const completedChapters = chapters.filter((chapter) => chapter.status === "done").length;
   const failedChapters = chapters.filter((chapter) => chapter.status === "failed").length;
   const completedChars = chapters.reduce((sum, chapter) => sum + chapter.content.length, 0);
-  const previewText = compactText(trimmedContent).slice(0, previewLimit);
-  const isPreviewTruncated = compactText(trimmedContent).length > previewLimit;
-  const isLongContent = trimmedContent.length > longContentThreshold;
   const status = getDocumentStatus(draft, hasContent, generating);
   const generationMethod = getGenerationMethod(draft, content);
 
@@ -167,17 +163,19 @@ export function DocumentPreview({
     toast.error("保存失败，请检查浏览器本地存储空间");
   }
 
-  async function handleExport() {
+  async function handleExport(format: "formal" | "minimal" | "with-header-footer" = "formal") {
     if (!hasContent) {
       toast.warning("请先生成或填写文档正文");
       return;
     }
 
     try {
-      await exportDocx(createRecord(draft, content));
+      await exportDocx(createRecord(draft, content), { format });
       toast.success("Word 文档已导出");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "导出失败");
+    } finally {
+      setShowExportDialog(false);
     }
   }
 
@@ -273,23 +271,19 @@ export function DocumentPreview({
             )}
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">正文预览</h3>
           </div>
-          <Badge variant="outline" className="shrink-0">
-            最多 {previewLimit} 字
-          </Badge>
+          {hasContent ? (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {content.length} 字
+            </span>
+          ) : null}
         </div>
 
-        {isLongContent ? (
-          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            正文较长，已折叠预览。请点击“打开全文编辑”查看和修改完整内容。
-          </div>
-        ) : null}
-
         {hasContent ? (
-          <div className="mt-3 max-h-64 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-7 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-            <p className="whitespace-pre-wrap break-words">
-              {previewText}
-              {isPreviewTruncated ? "..." : ""}
-            </p>
+          <div className="relative mt-3">
+            <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-7 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+              <p className="whitespace-pre-wrap break-words">{compactText(trimmedContent)}</p>
+            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-xl bg-gradient-to-t from-slate-50 to-transparent dark:from-slate-950" />
           </div>
         ) : (
           <EmptyState
@@ -326,7 +320,7 @@ export function DocumentPreview({
             <Clipboard className="size-4" />
             复制全文
           </Button>
-          <Button type="button" variant="outline" className="min-h-10 rounded-xl bg-white dark:bg-slate-900" onClick={() => void handleExport()} disabled={!hasContent}>
+          <Button type="button" variant="outline" className="min-h-10 rounded-xl bg-white dark:bg-slate-900" onClick={() => setShowExportDialog(true)} disabled={!hasContent}>
             <Download className="size-4" />
             导出 Word
           </Button>
@@ -344,6 +338,43 @@ export function DocumentPreview({
           </Button>
         </div>
       </section>
+
+      {/* Export Format Dialog */}
+      {showExportDialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">导出格式</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">选择导出的 Word 文档格式</p>
+            <div className="mt-4 space-y-2">
+              {([
+                { value: "formal" as const, label: "正式文档", desc: "标准格式化输出" },
+                { value: "minimal" as const, label: "简洁报告", desc: "无页眉页脚的精简格式" },
+                { value: "with-header-footer" as const, label: "带页眉页脚", desc: "文档标题作页眉，页码作页脚" },
+              ]).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => void handleExport(option.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/30"
+                >
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{option.label}</div>
+                  <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{option.desc}</div>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full rounded-xl"
+                onClick={() => setShowExportDialog(false)}
+              >
+                取消
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

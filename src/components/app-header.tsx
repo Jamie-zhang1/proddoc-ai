@@ -34,7 +34,7 @@ const navItems = [
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <div className="flex size-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/25">
+      <div className="animate-pulse-soft flex size-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/25">
         <Sparkles className="size-5" />
       </div>
       <div className="leading-tight">
@@ -84,12 +84,14 @@ export function AppHeader() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button asChild className="hidden min-h-10 rounded-xl bg-slate-950 text-white transition hover:scale-[1.02] hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 md:inline-flex">
-            <Link href="/workspace">
-              开始生成文档
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+          {pathname !== "/workspace" ? (
+            <Button asChild className="hidden min-h-10 rounded-xl bg-slate-950 text-white transition hover:scale-[1.02] hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 md:inline-flex">
+              <Link href="/workspace">
+                开始生成文档
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : null}
 
           <Sheet>
             <SheetTrigger asChild>

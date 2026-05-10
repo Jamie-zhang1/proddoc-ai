@@ -266,12 +266,18 @@ export type ActiveDocument = {
   updatedAt: string;
 };
 
+export type WorkspaceModuleItem = {
+  parent: string;
+  child: string;
+};
+
 export type WorkspaceDraft = {
   productName: string;
   productType: ProductType;
   targetUser: TargetUser;
   parentModule: string;
   moduleName: string;
+  modules: WorkspaceModuleItem[];
   documentType: DocumentType;
   detailLevel: DetailLevel;
   outputStyle: OutputStyle;
@@ -349,4 +355,31 @@ export type TestAiResponse = {
   ok: boolean;
   message?: string;
   error?: string;
+};
+
+export type ModelParams = {
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+};
+
+export type ExportFormat = "正式文档" | "简洁报告" | "带页眉页脚";
+
+export type ExportSettings = {
+  defaultFormat: ExportFormat;
+  filenamePattern: string;
+  includeMetadata: boolean;
+};
+
+export type HistoryActivityType = "document" | "prompt" | "template-export" | "api-call";
+
+export type HistoryActivity = {
+  id: string;
+  type: HistoryActivityType;
+  title: string;
+  description: string;
+  productName?: string;
+  moduleName?: string;
+  content?: string;
+  createdAt: string;
 };

@@ -1,6 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { FileText } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type EmptyStateProps = {
@@ -23,7 +26,10 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
       className={cn(
         "flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/80 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70",
         compact ? "min-h-36 px-5 py-8" : "min-h-64 px-6 py-12",
@@ -42,6 +48,6 @@ export function EmptyState({
       <h3 className={cn("text-lg font-semibold text-slate-900 dark:text-slate-100", illustration ? "" : "mt-4")}>{title}</h3>
       <p className="mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">{description}</p>
       {action ? <div className="mt-5">{action}</div> : null}
-    </div>
+    </motion.div>
   );
 }

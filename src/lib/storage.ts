@@ -2,10 +2,15 @@ import type {
   ActiveDocument,
   ActiveTemplate,
   CustomTemplate,
+  ExportSettings,
+  ExtractedDocumentStructure,
   GenerationPreferences,
+  HistoryActivity,
   HistoryRecord,
+  ModelParams,
   WorkspaceDraft,
 } from "@/lib/types";
+import { compressImage, estimateLocalStorageUsage, hasStorageCapacity } from "@/lib/image-compress";
 
 const historyKey = "proddoc-ai-history";
 const draftKey = "proddoc-ai-workspace-draft";
@@ -13,9 +18,35 @@ const activeTemplateKey = "proddoc-ai-active-template";
 const generationPreferencesKey = "proddoc-ai-generation-preferences";
 const customTemplatesKey = "proddoc-ai-custom-templates";
 const activeDocumentKey = "proddoc-ai-active-document";
+const activityKey = "proddoc-ai-activity-log";
+const templateParseKey = "proddoc-ai-template-parse-state";
+const modelParamsKey = "proddoc-ai-model-params";
+const exportSettingsKey = "proddoc-ai-export-settings";
+const STORAGE_LIMIT = 5 * 1024 * 1024; // 5MB typical limit
 
 function canUseStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
+}
+
+/**
+ * Try to free up storage by removing oldest history records.
+ */
+function tryFreeStorage(bytesNeeded: number): boolean {
+  const used = estimateLocalStorageUsage();
+  if (used + bytesNeeded < STORAGE_LIMIT) return true;
+
+  const records = getHistoryRecords();
+  // Remove oldest records one at a time until we have room
+  for (let i = records.length - 1; i >= 0; i--) {
+    records.pop();
+    try {
+      localStorage.setItem(historyKey, JSON.stringify(records));
+      if (hasStorageCapacity(bytesNeeded)) return true;
+    } catch {
+      continue;
+    }
+  }
+  return hasStorageCapacity(bytesNeeded);
 }
 
 export function getHistoryRecords(): HistoryRecord[] {
@@ -35,6 +66,17 @@ export function saveHistoryRecord(record: HistoryRecord) {
   try {
     const records = getHistoryRecords();
     localStorage.setItem(historyKey, JSON.stringify([record, ...records]));
+
+    // Also log as a document activity
+    addActivity({
+      type: "document",
+      title: record.title,
+      description: `${record.documentType} · ${record.parentModule}/${record.moduleName}`,
+      productName: record.productName,
+      moduleName: record.moduleName,
+      content: record.content,
+    });
+
     return true;
   } catch {
     // Storage can fail when the browser quota is exceeded or localStorage is disabled.
@@ -54,13 +96,33 @@ export function deleteHistoryRecord(id: string) {
   }
 }
 
-export function saveWorkspaceDraft(draft: WorkspaceDraft) {
-  if (!canUseStorage()) return;
+export async function saveWorkspaceDraft(draft: WorkspaceDraft): Promise<boolean> {
+  if (!canUseStorage()) return false;
+
+  // Compress screenshot data URLs before storing
+  let optimizedDraft = draft;
+  if (draft.screenshots && draft.screenshots.length > 0) {
+    const compressed = await Promise.all(
+      draft.screenshots.map(async (s) => ({
+        ...s,
+        dataUrl: await compressImage(s.dataUrl, 600, 0.7),
+      }))
+    );
+    optimizedDraft = { ...draft, screenshots: compressed };
+  }
+
+  const serialized = JSON.stringify(optimizedDraft);
+  const needed = serialized.length * 2; // UTF-16
 
   try {
-    localStorage.setItem(draftKey, JSON.stringify(draft));
+    if (!hasStorageCapacity(needed)) {
+      tryFreeStorage(needed);
+    }
+    localStorage.setItem(draftKey, serialized);
+    return true;
   } catch {
     // Draft persistence is best-effort because screenshots can be large.
+    return false;
   }
 }
 
@@ -237,5 +299,228 @@ export function clearActiveDocument() {
     localStorage.removeItem(activeDocumentKey);
   } catch {
     // Ignore unavailable storage.
+  }
+}
+
+// --- Activity Log ---
+
+export function getActivityLog(): HistoryActivity[] {
+  if (!canUseStorage()) return [];
+
+  try {
+    const raw = localStorage.getItem(activityKey);
+    return raw ? (JSON.parse(raw) as HistoryActivity[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addActivity(activity: Omit<HistoryActivity, "id" | "createdAt">) {
+  if (!canUseStorage()) return false;
+
+  try {
+    const log = getActivityLog();
+    const entry: HistoryActivity = {
+      ...activity,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(activityKey, JSON.stringify([entry, ...log]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deleteActivity(id: string) {
+  if (!canUseStorage()) return [];
+
+  try {
+    const next = getActivityLog().filter((a) => a.id !== id);
+    localStorage.setItem(activityKey, JSON.stringify(next));
+    return next;
+  } catch {
+    return getActivityLog();
+  }
+}
+
+// --- Template Parse State ---
+
+export type TemplateParseState = {
+  isParsing: boolean;
+  progress: number;
+  sourceText: string;
+  fileName: string;
+  result?: ExtractedDocumentStructure;
+};
+
+export function getTemplateParseState(): TemplateParseState | null {
+  if (!canUseStorage()) return null;
+
+  try {
+    const raw = localStorage.getItem(templateParseKey);
+    return raw ? (JSON.parse(raw) as TemplateParseState) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTemplateParseState(state: TemplateParseState) {
+  if (!canUseStorage()) return false;
+
+  try {
+    localStorage.setItem(templateParseKey, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearTemplateParseState() {
+  if (!canUseStorage()) return;
+
+  try {
+    localStorage.removeItem(templateParseKey);
+  } catch {
+    // Ignore unavailable storage.
+  }
+}
+
+// --- Model Params ---
+
+const defaultModelParams: ModelParams = {
+  temperature: 0.7,
+  maxTokens: 4096,
+  topP: 0.95,
+};
+
+export function getModelParams(): ModelParams {
+  if (!canUseStorage()) return defaultModelParams;
+
+  try {
+    const raw = localStorage.getItem(modelParamsKey);
+    if (!raw) return defaultModelParams;
+    const parsed = JSON.parse(raw) as Partial<ModelParams>;
+    return { ...defaultModelParams, ...parsed };
+  } catch {
+    return defaultModelParams;
+  }
+}
+
+export function saveModelParams(params: ModelParams): boolean {
+  if (!canUseStorage()) return false;
+
+  try {
+    localStorage.setItem(modelParamsKey, JSON.stringify(params));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// --- Export Settings ---
+
+const defaultExportSettings: ExportSettings = {
+  defaultFormat: "正式文档",
+  filenamePattern: "{productName}_{moduleName}_{date}",
+  includeMetadata: true,
+};
+
+export function getExportSettings(): ExportSettings {
+  if (!canUseStorage()) return defaultExportSettings;
+
+  try {
+    const raw = localStorage.getItem(exportSettingsKey);
+    if (!raw) return defaultExportSettings;
+    const parsed = JSON.parse(raw) as Partial<ExportSettings>;
+    return { ...defaultExportSettings, ...parsed };
+  } catch {
+    return defaultExportSettings;
+  }
+}
+
+export function saveExportSettings(settings: ExportSettings): boolean {
+  if (!canUseStorage()) return false;
+
+  try {
+    localStorage.setItem(exportSettingsKey, JSON.stringify(settings));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// --- Data Management ---
+
+const allStorageKeys = [
+  historyKey,
+  draftKey,
+  activeTemplateKey,
+  generationPreferencesKey,
+  customTemplatesKey,
+  activeDocumentKey,
+  activityKey,
+  templateParseKey,
+  modelParamsKey,
+  exportSettingsKey,
+];
+
+export function getStorageUsageKB(): number {
+  if (!canUseStorage()) return 0;
+
+  let total = 0;
+  for (const key of allStorageKeys) {
+    const raw = localStorage.getItem(key);
+    if (raw) total += raw.length * 2; // UTF-16
+  }
+  return Math.round(total / 1024);
+}
+
+export function clearAllData(): boolean {
+  if (!canUseStorage()) return false;
+
+  try {
+    for (const key of allStorageKeys) {
+      localStorage.removeItem(key);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function exportAllData(): Record<string, unknown> | null {
+  if (!canUseStorage()) return null;
+
+  try {
+    const data: Record<string, unknown> = {};
+    for (const key of allStorageKeys) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          data[key] = JSON.parse(raw);
+        } catch {
+          data[key] = raw;
+        }
+      }
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export function importAllData(data: Record<string, unknown>): boolean {
+  if (!canUseStorage()) return false;
+
+  try {
+    for (const [key, value] of Object.entries(data)) {
+      if (allStorageKeys.includes(key)) {
+        localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+      }
+    }
+    return true;
+  } catch {
+    return false;
   }
 }

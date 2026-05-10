@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { GalleryHorizontalEnd, Layers3, Trash2 } from "lucide-react";
+import { GalleryHorizontalEnd, Layers3, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import { IllustrationImage } from "@/components/illustration-image";
@@ -11,6 +11,7 @@ import { TemplateCard } from "@/components/template-card";
 import { TemplateImporter } from "@/components/template-importer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getTemplateConfig, templates } from "@/lib/mock-data";
 import {
   deleteCustomTemplate,
@@ -20,9 +21,22 @@ import {
 } from "@/lib/storage";
 import type { CustomTemplate } from "@/lib/types";
 
+const filterCategories = ["全部", "产品说明书", "操作手册", "培训讲稿", "售前介绍"] as const;
+
+const templateCategoryMap: Record<string, string> = {
+  "standard-product-manual": "产品说明书",
+  "feature-addendum": "产品说明书",
+  "similar-module-rewrite": "产品说明书",
+  "operation-guide": "操作手册",
+  "training-script": "培训讲稿",
+  "presales-introduction": "售前介绍",
+};
+
 export default function TemplatesPage() {
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("全部");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -32,6 +46,20 @@ export default function TemplatesPage() {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((template) => {
+      const matchesSearch =
+        !searchQuery ||
+        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        template.scenario.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const category = templateCategoryMap[template.id] ?? "产品说明书";
+      const matchesFilter = activeFilter === "全部" || category === activeFilter;
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [searchQuery, activeFilter]);
 
   function enableCustomTemplate(template: CustomTemplate) {
     const config = getTemplateConfig(templates[0]);
@@ -105,16 +133,50 @@ export default function TemplatesPage() {
         <TemplateImporter onSaved={() => setCustomTemplates(getCustomTemplates())} />
       </MotionSection>
 
+      {/* Search and Filter */}
+      <MotionSection className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索模板名称或描述..."
+            className="h-11 rounded-xl border-slate-200 bg-white pl-10 dark:border-slate-800 dark:bg-slate-900"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {filterCategories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setActiveFilter(cat)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                activeFilter === cat
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </MotionSection>
+
       <MotionSection className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
           <GalleryHorizontalEnd className="size-4" />
           <h2 className="text-sm font-medium">系统文档模板</h2>
+          {filteredTemplates.length !== templates.length ? (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              ({filteredTemplates.length}/{templates.length})
+            </span>
+          ) : null}
         </div>
       </MotionSection>
 
       <MotionSection className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {templates.length ? (
-          templates.map((template) => (
+        {filteredTemplates.length ? (
+          filteredTemplates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
@@ -125,8 +187,8 @@ export default function TemplatesPage() {
         ) : (
           <div className="md:col-span-2 xl:col-span-3">
             <EmptyState
-              title="暂无可用模板"
-              description="可以先前往工作台，使用默认模板生成第一份文档。"
+              title="没有匹配的模板"
+              description="尝试调整搜索关键词或筛选条件。"
               illustration={
                 <IllustrationImage
                   src="/images/template-documents.svg"
@@ -136,8 +198,15 @@ export default function TemplatesPage() {
                 />
               }
               action={
-                <Button asChild className="rounded-xl bg-indigo-600 hover:bg-indigo-500">
-                  <Link href="/workspace">去工作台</Link>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setActiveFilter("全部");
+                  }}
+                >
+                  清除筛选
                 </Button>
               }
             />

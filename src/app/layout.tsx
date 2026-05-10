@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,8 +25,10 @@ export default function RootLayout({
       <body className="min-h-full bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
         <ThemeProvider>
           <TooltipProvider>
-            <AppHeader />
-            {children}
+            <ErrorBoundary>
+              <AppHeader />
+              {children}
+            </ErrorBoundary>
             <Toaster richColors position="top-center" />
           </TooltipProvider>
         </ThemeProvider>

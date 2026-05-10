@@ -47,7 +47,7 @@ export function TemplateCard({ template, active, onEnabled }: TemplateCardProps)
   }
 
   return (
-    <Card className={active ? "hover-lift flex h-full flex-col rounded-2xl border-indigo-200 border-l-indigo-600 border-l-4 bg-indigo-50/60 shadow-md ring-1 ring-indigo-100 dark:border-indigo-500/30 dark:border-l-indigo-400 dark:bg-indigo-500/10" : "hover-lift flex h-full flex-col rounded-2xl border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"}>
+    <Card className={active ? "hover-lift flex h-full flex-col rounded-2xl border-indigo-200 border-l-indigo-600 border-l-4 bg-indigo-50/60 shadow-md ring-1 ring-indigo-100 dark:border-indigo-500/30 dark:border-l-indigo-400 dark:bg-indigo-500/10" : "hover-lift flex h-full flex-col rounded-2xl border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-200"}>
       <CardHeader>
         <div className="mb-4 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 p-4 dark:border-indigo-500/20 dark:from-indigo-500/10 dark:to-violet-500/10">
           <div className="flex items-start justify-between gap-3">

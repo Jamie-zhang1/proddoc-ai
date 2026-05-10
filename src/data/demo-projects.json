@@ -1,0 +1,54 @@
+[
+  {
+    "id": "saas-crm-demo",
+    "name": "SaaS 客户管理系统 Demo",
+    "productName": "SaaS 客户管理系统 Demo",
+    "productType": "CRM 系统",
+    "modules": [
+      { "name": "首页概览", "children": ["核心指标", "待办事项", "快捷入口"] },
+      { "name": "客户管理", "children": ["客户列表", "客户档案", "客户分层", "跟进记录"] },
+      { "name": "商机管理", "children": ["商机列表", "商机阶段", "成交预测", "商机复盘"] },
+      { "name": "合同管理", "children": ["合同列表", "合同审批", "回款记录", "发票管理"] },
+      { "name": "系统设置", "children": ["角色权限", "字段配置", "操作日志"] }
+    ]
+  },
+  {
+    "id": "content-ops-demo",
+    "name": "内容运营后台 Demo",
+    "productName": "内容运营后台 Demo",
+    "productType": "内容管理系统",
+    "modules": [
+      { "name": "内容管理", "children": ["内容列表", "内容编辑", "内容审核", "分类管理"] },
+      { "name": "用户管理", "children": ["用户列表", "用户画像", "用户分群", "权限配置"] },
+      { "name": "运营配置", "children": ["活动配置", "推荐位配置", "消息推送", "弹窗配置"] },
+      { "name": "数据统计", "children": ["访问数据", "转化数据", "留存数据", "内容效果"] },
+      { "name": "系统管理", "children": ["账号管理", "操作日志", "参数配置"] }
+    ]
+  },
+  {
+    "id": "collaboration-demo",
+    "name": "企业协作平台 Demo",
+    "productName": "企业协作平台 Demo",
+    "productType": "协作办公系统",
+    "modules": [
+      { "name": "工作台", "children": ["我的待办", "最近访问", "快捷应用"] },
+      { "name": "项目管理", "children": ["项目列表", "任务看板", "进度跟踪", "项目成员"] },
+      { "name": "文档协作", "children": ["文档列表", "权限管理", "版本记录", "评论协作"] },
+      { "name": "通知中心", "children": ["消息列表", "通知规则", "已读状态"] },
+      { "name": "组织管理", "children": ["部门管理", "成员管理", "角色权限"] }
+    ]
+  },
+  {
+    "id": "bi-dashboard-demo",
+    "name": "BI 数据看板 Demo",
+    "productName": "BI 数据看板 Demo",
+    "productType": "BI 看板",
+    "modules": [
+      { "name": "数据总览", "children": ["核心指标", "趋势图表", "异常提醒"] },
+      { "name": "报表管理", "children": ["报表列表", "报表配置", "报表订阅", "报表导出"] },
+      { "name": "指标分析", "children": ["指标库", "维度筛选", "对比分析", "下钻分析"] },
+      { "name": "数据源管理", "children": ["数据连接", "字段映射", "更新记录"] },
+      { "name": "权限管理", "children": ["看板权限", "数据权限", "访问日志"] }
+    ]
+  }
+]
