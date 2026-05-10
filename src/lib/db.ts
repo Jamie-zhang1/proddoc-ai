@@ -92,6 +92,7 @@ export async function idbClear(storeName: string): Promise<void> {
  */
 export async function estimateIDBUsage(): Promise<{ usage: number; quota: number } | null> {
   try {
+    // Try estimate API first (requires HTTPS)
     if (typeof navigator !== "undefined" && "storage" in navigator && "estimate" in navigator.storage) {
       const estimate = await navigator.storage.estimate();
       return { usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 };
@@ -100,4 +101,32 @@ export async function estimateIDBUsage(): Promise<{ usage: number; quota: number
     // ignore
   }
   return null;
+}
+
+/** Check if IndexedDB is available and has data */
+export async function getIDBStatus(): Promise<{ available: boolean; stores: string[] }> {
+  try {
+    const db = await openDB();
+    const stores = Array.from(db.objectStoreNames);
+    db.close();
+    return { available: true, stores };
+  } catch {
+    return { available: false, stores: [] };
+  }
+}
+
+/** Estimate IndexedDB data size by counting records */
+export async function getIDBRecordCount(storeName: string): Promise<number> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, "readonly");
+      const store = tx.objectStore(storeName);
+      const countReq = store.count();
+      countReq.onsuccess = () => { resolve(countReq.result); db.close(); };
+      countReq.onerror = () => { resolve(0); db.close(); };
+    });
+  } catch {
+    return 0;
+  }
 }

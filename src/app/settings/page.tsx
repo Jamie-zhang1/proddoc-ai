@@ -47,6 +47,8 @@ import {
   getStorageUsageKB,
   getIndexedDBUsageKB,
   getIndexedDBQuotaMB,
+  getIDBStatus,
+  getIDBRecordCount,
   importAllData,
   saveExportSettings,
   saveGenerationPreferences,
@@ -119,6 +121,9 @@ export default function SettingsPage() {
   const [storageUsage, setStorageUsage] = useState(0);
   const [idbUsageKB, setIdbUsageKB] = useState<number | null>(null);
   const [idbQuotaMB, setIdbQuotaMB] = useState<number | null>(null);
+  const [idbAvailable, setIdbAvailable] = useState(false);
+  const [idbDocCount, setIdbDocCount] = useState(0);
+  const [idbScreenshotCount, setIdbScreenshotCount] = useState(0);
   const [confirmClear, setConfirmClear] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,6 +131,9 @@ export default function SettingsPage() {
     setStorageUsage(getStorageUsageKB());
     void getIndexedDBUsageKB().then(setIdbUsageKB);
     void getIndexedDBQuotaMB().then(setIdbQuotaMB);
+    void getIDBStatus().then((s: { available: boolean; stores: string[] }) => setIdbAvailable(s.available));
+    void getIDBRecordCount("documents").then(setIdbDocCount);
+    void getIDBRecordCount("screenshots").then(setIdbScreenshotCount);
   }, []);
 
   useEffect(() => {
@@ -629,12 +637,22 @@ export default function SettingsPage() {
               <div className="mt-3">
                 <div className="flex items-baseline gap-1">
                   <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {idbUsageKB !== null ? idbUsageKB : "—"}
+                    {idbUsageKB !== null ? idbUsageKB : (idbAvailable ? "~0" : "—")}
                   </span>
                   <span className="text-sm text-slate-500">
-                    {idbQuotaMB !== null ? `KB / ${idbQuotaMB} MB` : "KB / 不可用"} (IndexedDB)
+                    KB{idbQuotaMB !== null ? ` / ${idbQuotaMB} MB` : ""} (IndexedDB)
+                  </span>
+                  <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${idbAvailable ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"}`}
+                  >
+                    {idbAvailable ? "可用" : "不可用（需 HTTPS）"}
                   </span>
                 </div>
+                {idbAvailable && (
+                  <div className="mt-2 flex gap-4 text-xs text-slate-500">
+                    <span>📄 文档: {idbDocCount} 条</span>
+                    <span>🖼️ 截图: {idbScreenshotCount} 条</span>
+                  </div>
+                )}
                 <p className="mt-1 text-xs leading-5 text-slate-400">
                   截图和大型文档内容自动存储在 IndexedDB 中，不受 5MB 限制。
                 </p>

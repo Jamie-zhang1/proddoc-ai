@@ -1,3 +1,7 @@
+import { getIDBStatus as _getIDBStatus, getIDBRecordCount as _getIDBRecordCount } from "./db";
+export const getIDBStatus = _getIDBStatus;
+export const getIDBRecordCount = _getIDBRecordCount;
+
 import type {
   ActiveDocument,
   ActiveTemplate,
