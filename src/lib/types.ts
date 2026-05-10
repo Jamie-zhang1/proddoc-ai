@@ -334,10 +334,18 @@ export type ApiGenerateRequest = {
   mode: "document";
   documentType: DocumentType;
   temperature?: number;
+  stream?: boolean;
 };
 
 export type ApiGenerateResponse = {
   content?: string;
+  error?: string;
+};
+
+/** SSE chunk sent during streaming */
+export type ApiStreamChunk = {
+  content?: string;
+  done?: boolean;
   error?: string;
 };
 
