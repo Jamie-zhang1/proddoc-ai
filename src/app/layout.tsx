@@ -11,6 +11,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ProdDoc AI",
   description: "通用软件产品说明书与操作文档生成工作台",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+    shortcut: "/icons/logo.svg",
+  },
 };
 
 export const viewport: Viewport = {

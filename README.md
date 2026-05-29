@@ -8,6 +8,8 @@
 
 ![Dashboard](public/screenshots/dashboard.png)
 
+> 🔗 在线体验：[proddoc-ai.vercel.app](https://proddoc-ai.vercel.app)（如已部署）
+
 ## 项目简介
 
 ProdDoc AI 面向产品经理、售前顾问、实施交付和培训人员，帮助基于产品模块信息快速生成产品说明书、操作手册、培训讲稿和售前介绍。
@@ -27,6 +29,7 @@ ProdDoc AI 面向产品经理、售前顾问、实施交付和培训人员，帮
 - **活动日志**：自动记录所有生成、提示词、API 调用，支持筛选搜索
 
 ### 🎨 界面体验
+- **项目图标**：自定义 SVG 图标 + favicon（ICO/PNG 多尺寸）
 - **响应式布局**：手机 / 平板 / 桌面自适应
 - **深色模式**：完整的深色主题支持
 - **骨架屏加载**：页面加载时显示 shimmer 动画
