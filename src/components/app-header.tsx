@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -34,9 +35,14 @@ const navItems = [
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <div className="flex size-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/25">
-        <Sparkles className="size-5" />
-      </div>
+      <Image
+        src="/project-icon.png"
+        alt="ProdDoc AI 图标"
+        width={40}
+        height={40}
+        className="size-10 rounded-2xl object-cover shadow-sm shadow-indigo-600/25"
+        priority
+      />
       <div className="leading-tight">
         <div className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-50">
           ProdDoc AI

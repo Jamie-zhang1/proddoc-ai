@@ -8,6 +8,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ProdDoc AI",
   description: "通用软件产品说明书与操作文档生成工作台",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/project-icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/project-icon.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
